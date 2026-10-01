@@ -581,14 +581,14 @@ def main():
 
     # Figure 3: Stacked N(z) Ensemble
     fig, (ax_nz, ax_res) = plt.subplots(2, 1, figsize=(9.5, 7.5), dpi=300, gridspec_kw={'height_ratios': [3, 1], 'hspace': 0.15})
-    stacked_nz = np.mean(oof_pdfs_calib, axis=0) / dz
+    stacked_nz = np.mean(oof_pdfs_calib, axis=0)
     hist_true, bin_edges = np.histogram(z_true_all, bins=len(Z_CENTERS), range=(Z_CENTERS[0]-0.5*dz, Z_CENTERS[-1]+0.5*dz), density=True)
 
-    ax_nz.plot(Z_CENTERS, stacked_nz, color='#1f77b4', lw=2.2, label=r'Stacked Ensemble $\hat{N}(z)$ (Pontifex)')
-    ax_nz.step(Z_CENTERS, hist_true, where='mid', color='black', lw=1.8, ls='--', label=r'True Spectroscopic $N_{\rm spec}(z)$')
+    ax_nz.plot(Z_CENTERS, stacked_nz, color='#1f77b4', lw=2.2, label=rf'Stacked Ensemble $\hat{{n}}(z)$ (Pontifex, $N={N:,}$)')
+    ax_nz.step(Z_CENTERS, hist_true, where='mid', color='black', lw=1.8, ls='--', label=rf'True Spectroscopic $n_{{\rm spec}}(z)$ ($N={N:,}$)')
     ax_nz.set_xlim(0, 3)
-    ax_nz.set_ylabel(r'Normalized Redshift Density $\mathrm{d}N/\mathrm{d}z$', fontsize=12)
-    ax_nz.set_title(r'Stacked Ensemble Redshift Distribution vs. Spectroscopic Ground Truth', fontsize=13, pad=10)
+    ax_nz.set_ylabel(r'Normalized Redshift Density $n(z)\ [\int n(z)\,\mathrm{d}z = 1]$', fontsize=12)
+    ax_nz.set_title(rf'Ensemble Redshift Reconstruction vs. Ground Truth ($N={N:,}$)', fontsize=13, pad=10)
     ax_nz.legend(loc='upper right', frameon=True, facecolor='white', framealpha=0.9, fontsize=11)
 
     srd_box = (
@@ -609,7 +609,7 @@ def main():
     ax_res.axhline(0.0, color='gray', ls='--', lw=1.0)
     ax_res.set_xlim(0, 3)
     ax_res.set_xlabel(r'Redshift $z$', fontsize=12)
-    ax_res.set_ylabel(r'$\Delta N(z)$', fontsize=11)
+    ax_res.set_ylabel(r'$\Delta n(z)$', fontsize=11)
 
     fig.savefig(plot_dir / "figure3_stacked_nz_ensemble.png", bbox_inches='tight', dpi=300)
     plt.close(fig)
