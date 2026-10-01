@@ -1,0 +1,41 @@
+{
+  "total_galaxies": 76046,
+  "cv_folds": 5,
+  "blend_candidates": 76046,
+  "moe": {
+    "Bias (Median)": -0.001031384654420911,
+    "Biweight Location": -0.0008552288931636511,
+    "Sigma_MAD": 0.016307183402248248,
+    "Sigma_IQR": 0.016308408409614297,
+    "Biweight Scale": 0.01916516113372665,
+    "Outlier Rate (>0.15)": 0.05871446229913473,
+    "Severe Outlier (>0.30)": 0.03442653130999658,
+    "Mean PIT": 0.48286259947472504,
+    "Var(PIT)": 0.02822182333918136,
+    "PIT KS Statistic": 0.2157272861179257,
+    "Cramer-von Mises (CvM)": 1359.435958375321,
+    "PIT Outlier Rate": 3.944980669594719e-05,
+    "Mean CRPS": 0.0965724692081427,
+    "Wasserstein W1": 0.11188820191666207,
+    "Delta_mu (DESC SRD)": 0.11052510498651147,
+    "Delta_sigma (DESC SRD)": 0.12720018611225925
+  },
+  "moe_em": {
+    "Bias (Median)": -0.0022615405081814477,
+    "Biweight Location": -0.00120100447345284,
+    "Sigma_MAD": 0.019345848491189317,
+    "Sigma_IQR": 0.019536765472292075,
+    "Biweight Scale": 0.02157534686588001,
+    "Outlier Rate (>0.15)": 0.08181889908739447,
+    "Severe Outlier (>0.30)": 0.046208873576519476,
+    "Mean PIT": 0.5564032276819783,
+    "Var(PIT)": 0.042040147392031206,
+    "PIT KS Statistic": 0.19421169771529992,
+    "Cramer-von Mises (CvM)": 974.4602204190678,
+    "PIT Outlier Rate": 0.0036293822160271415,
+    "Mean CRPS": 0.10544767792532918,
+    "Wasserstein W1": 0.06818729971476872,
+    "Delta_mu (DESC SRD)": -0.06500026098126643,
+    "Delta_sigma (DESC SRD)": -0.08541470451209104
+  }
+}

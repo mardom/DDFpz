@@ -5,10 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import joblib
-try:
-    import tables_io
-except ImportError:
-    tables_io = None
+import tables_io
 
 try:
     import qp
