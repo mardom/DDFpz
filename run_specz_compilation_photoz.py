@@ -277,12 +277,14 @@ def main():
     oof_pdfs_moe = np.zeros((N, n_grid), dtype=np.float32)
     oof_pdfs_calib = np.zeros((N, n_grid), dtype=np.float32)
     oof_is_blend = np.zeros(N, dtype=bool)
+    oof_cv_fold = np.zeros(N, dtype=np.int32)
 
     print("\n" + "=" * 85)
     print(f"EXECUTING {n_splits}-FOLD CROSS-VALIDATION WITH RAIL EXPERTS + AION-PZ + EM BLEND LOOP")
     print("=" * 85)
 
     for fold, (tr_idx, te_idx) in enumerate(kf.split(catalog['redshift'])):
+        oof_cv_fold[te_idx] = fold
         t_fold = time.time()
         print(f"\n>>> [FOLD {fold + 1}/{n_splits}] Train: {len(tr_idx):,} | Test: {len(te_idx):,} galaxies")
 
@@ -467,11 +469,16 @@ def main():
     print(f"\nSaving predictions and PDFs to {pred_dir}...")
     pred_df = pd.DataFrame({
         'object_id': catalog['object_id'],
+        'cv_fold': oof_cv_fold,
         'ra': catalog['ra'],
         'dec': catalog['dec'],
         'z_spec': z_true_all,
+        'z_mode': z_mode_calib,
+        'z_mode_moe': z_mode_moe,
+        'z_mode_calib': z_mode_calib,
         'z_phot_moe': z_mode_moe,
         'z_phot_final': z_mode_calib,
+        'dz_moe': (z_mode_moe - z_true_all) / (1.0 + z_true_all),
         'dz_final': (z_mode_calib - z_true_all) / (1.0 + z_true_all),
         'is_blend_candidate': oof_is_blend,
     })
@@ -480,10 +487,12 @@ def main():
     np.savez_compressed(
         pred_dir / "pontifex_cosmos_specz_pdfs.npz",
         z_grid=Z_CENTERS,
-        pdfs_moe=oof_pdfs_moe,
+        pdfs=oof_pdfs_calib,
         pdfs_calib=oof_pdfs_calib,
+        pdfs_moe=oof_pdfs_moe,
         object_id=catalog['object_id'],
-        z_spec=z_true_all
+        z_spec=z_true_all,
+        cv_fold=oof_cv_fold,
     )
     print("✓ Predictions and compressed PDFs archived.")
 

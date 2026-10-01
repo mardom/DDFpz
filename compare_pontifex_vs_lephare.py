@@ -141,8 +141,13 @@ def main():
 
     # Merge catalogs
     print("Merging Pontifex predictions with DR1.1 and photometry...")
+    z_pont_col = 'z_phot_final' if 'z_phot_final' in df_pontifex.columns else ('z_mode_calib' if 'z_mode_calib' in df_pontifex.columns else 'z_mode')
+    
     merged = pd.merge(df_pontifex, df_u[['Id_specz', 'photoz', 'photoz_type']], left_on='object_id', right_on='Id_specz')
-    merged = pd.merge(merged, df_c[['Id_specz', 'mag_i']], on='Id_specz')
+    if 'mag_i' in merged.columns:
+        merged = pd.merge(merged, df_c[['Id_specz', 'mag_i']], on='Id_specz', suffixes=('', '_cigale'))
+    else:
+        merged = pd.merge(merged, df_c[['Id_specz', 'mag_i']], on='Id_specz')
 
     # Define fair matched sample:
     # 1. Flag >= 3 (already guaranteed in curated sample)
@@ -154,8 +159,8 @@ def main():
         np.isfinite(merged['photoz']) &
         (merged['photoz'] >= 0.01) &
         (merged['photoz'] <= 10.0) &
-        np.isfinite(merged['z_phot_final']) &
-        (merged['z_phot_final'] >= 0.01)
+        np.isfinite(merged[z_pont_col]) &
+        (merged[z_pont_col] >= 0.01)
     )
 
     df_matched = merged[matched_mask].copy()
@@ -163,7 +168,7 @@ def main():
     print(f"\nStrict Fair Matched Sample: N = {N_matched:,} galaxies")
 
     zs = df_matched['z_spec'].values
-    zp_pont = df_matched['z_phot_final'].values
+    zp_pont = df_matched[z_pont_col].values
     zp_leph = df_matched['photoz'].values
     mag_i = df_matched['mag_i'].values
 
