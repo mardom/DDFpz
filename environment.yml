@@ -212,6 +212,7 @@ dependencies:
       - jaxlib==0.10.2
       - jaxtyping==0.3.11
       - jinja2==3.1.6
+      - lephare==1.0.0
       - lsstdesc-gcr-catalogs==1.10.3
       - markdown-it-py==4.2.0
       - markupsafe==3.0.3
@@ -243,6 +244,7 @@ dependencies:
       - pillow==12.3.0
       - polymathic-aion==0.0.2
       - pontifex==2.1.0
+      - pooch==1.9.0
       - progressbar2==4.6.0
       - py-cpuinfo==9.0.0
       - pyarrow==25.0.1
@@ -251,6 +253,7 @@ dependencies:
       - pytdigest==0.1.4
       - python-utils==4.0.1
       - pywavelets==1.9.0
+      - pz-data-challenge==0.4.dev1+g1a345d87b
       - pz-hyperbolic-temp==0.0
       - pz-rail-astro-tools==2.0.5
       - pz-rail-base==2.0.11
@@ -258,6 +261,7 @@ dependencies:
       - pz-rail-cmnn==2.0.2
       - pz-rail-flexzboost==2.0.3
       - pz-rail-gpz-v1==2.0.3
+      - pz-rail-lephare==2.0.5.dev0+gbf007b61c.d20261001
       - pz-rail-pzflow==2.0.4
       - pz-rail-sklearn==2.0.3
       - pz-rail-som==2.0.1
@@ -283,5 +287,6 @@ dependencies:
       - urllib3==2.8.0
       - wadler-lindig==0.1.7
       - wrapt==2.5.0
+      - wurlitzer==3.1.1
       - xgboost==3.2.0
 prefix: /home/mardom/miniconda3/envs/pz
