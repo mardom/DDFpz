@@ -1,0 +1,18 @@
+Metric,Pontifex_v2.2.0,COSMOS2020_LePHARE
+Sample Size (N),"35,291","35,291"
+Input Photometry,6 Rubin LSST bands (ugrizy),30+ UV-to-IRAC Bands
+Photo-z Bias (Median),-0.00229,-0.00301
+Biweight Location,-0.00130,-0.00323
+Scatter Sigma_MAD,0.01747,0.01070
+Scatter Sigma_IQR,0.01766,0.01115
+Biweight Scale,0.01923,0.01296
+Outlier Rate (eta > 0.15),7.39%,2.75%
+Severe Outlier (eta > 0.30),4.39%,1.49%
+Catastrophic (|dz| > 1.0),3.30%,0.78%
+Overall RMSE,0.11830,0.11930
+DESC SRD Mean Shift (delta_mu),-0.07599,-0.00500
+DESC SRD Dispersion Shift,-0.11564,+0.01090
+--- Core Regime (z < 1.2) ---,"N = 28,866","N = 28,866"
+Core Bias (Median),-0.00012,-0.00237
+Core Sigma_MAD,0.01589,0.00930
+Core Outlier Rate (eta > 0.15),2.12%,2.28%
