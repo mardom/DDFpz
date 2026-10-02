@@ -25,6 +25,7 @@ import os
 import sys
 import json
 import shutil
+import argparse
 from pathlib import Path
 
 import numpy as np
@@ -99,9 +100,17 @@ def compute_metrics(zp, zs):
     }
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Fair Benchmark: Pontifex v2.2.0 vs COSMOS2020 LePHARE")
+    parser.add_argument("--zmin", type=float, default=0.0, help="Minimum spectroscopic redshift (default: 0.0)")
+    parser.add_argument("--zmax", type=float, default=1.3, help="Maximum spectroscopic redshift (default: 1.3)")
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
     print("=" * 85)
-    print("FAIR BENCHMARK: PONTIFEX v2.2.0 (AionPlus) vs. COSMOS2020 Classic LePHARE")
+    print(f"FAIR BENCHMARK: PONTIFEX v2.2.0 (AionPlus) vs. COSMOS2020 Classic LePHARE [z in [{args.zmin:.1f}, {args.zmax:.1f}]]")
     print("=" * 85)
 
     data_dir = SCRIPT_DIR.parent.parent / "data" / "speczcompilation"
@@ -151,7 +160,7 @@ def main():
 
     # Define fair matched sample:
     # 1. Flag >= 3 (already guaranteed in curated sample)
-    # 2. 0.01 <= z_spec <= 3.0 (already guaranteed in curated sample)
+    # 2. args.zmin <= z_spec <= args.zmax
     # 3. photoz_type == 0 (Galaxy in COSMOS2020 Classic LePHARE)
     # 4. Valid, finite, positive photoz in [0.01, 10.0]
     matched_mask = (
@@ -160,31 +169,34 @@ def main():
         (merged['photoz'] >= 0.01) &
         (merged['photoz'] <= 10.0) &
         np.isfinite(merged[z_pont_col]) &
-        (merged[z_pont_col] >= 0.01)
+        (merged[z_pont_col] >= 0.01) &
+        (merged['z_spec'] >= args.zmin) &
+        (merged['z_spec'] <= args.zmax)
     )
 
     df_matched = merged[matched_mask].copy()
     N_matched = len(df_matched)
-    print(f"\nStrict Fair Matched Sample: N = {N_matched:,} galaxies")
+    print(f"\nStrict Fair Matched Sample ({args.zmin:.1f} <= z_spec <= {args.zmax:.1f}): N = {N_matched:,} galaxies")
 
     zs = df_matched['z_spec'].values
     zp_pont = df_matched[z_pont_col].values
     zp_leph = df_matched['photoz'].values
     mag_i = df_matched['mag_i'].values
 
-    # Overall metrics
+    # Overall metrics in selected redshift range
     metrics_pont_all = compute_metrics(zp_pont, zs)
     metrics_leph_all = compute_metrics(zp_leph, zs)
 
-    # Core regime (z < 1.2) metrics
-    core_mask = zs < 1.2
-    metrics_pont_core = compute_metrics(zp_pont[core_mask], zs[core_mask])
-    metrics_leph_core = compute_metrics(zp_leph[core_mask], zs[core_mask])
+    # Cosmic shear sweet spot (0.4 <= z < 1.0)
+    shear_mask = (zs >= 0.4) & (zs < 1.0)
+    metrics_pont_shear = compute_metrics(zp_pont[shear_mask], zs[shear_mask])
+    metrics_leph_shear = compute_metrics(zp_leph[shear_mask], zs[shear_mask])
 
     print("\n" + "=" * 85)
     print(f"{'LSST DESC PZ Metric':<30s} | {'Pontifex v2.2.0 (6 bands)':<25s} | {'COSMOS2020 LePHARE (30+ bands)':<30s}")
     print("-" * 85)
     metric_rows = [
+        ('Redshift Range', f"z in [{args.zmin:.1f}, {args.zmax:.1f}]", f"z in [{args.zmin:.1f}, {args.zmax:.1f}]"),
         ('Sample Size (N)', f"{N_matched:,}", f"{N_matched:,}"),
         ('Input Photometry', "6 Rubin LSST bands (ugrizy)", "30+ UV-to-IRAC Bands"),
         ('Photo-z Bias (Median)', f"{metrics_pont_all['bias']:+.5f}", f"{metrics_leph_all['bias']:+.5f}"),
@@ -198,10 +210,11 @@ def main():
         ('Overall RMSE', f"{metrics_pont_all['rmse']:.5f}", f"{metrics_leph_all['rmse']:.5f}"),
         ('DESC SRD Mean Shift (delta_mu)', f"{metrics_pont_all['delta_mu']:+.5f}", f"{metrics_leph_all['delta_mu']:+.5f}"),
         ('DESC SRD Dispersion Shift', f"{metrics_pont_all['delta_sigma']:+.5f}", f"{metrics_leph_all['delta_sigma']:+.5f}"),
-        ('--- Core Regime (z < 1.2) ---', f"N = {int(np.sum(core_mask)):,}", f"N = {int(np.sum(core_mask)):,}"),
-        ('Core Bias (Median)', f"{metrics_pont_core['bias']:+.5f}", f"{metrics_leph_core['bias']:+.5f}"),
-        ('Core Sigma_MAD', f"{metrics_pont_core['sigma_mad']:.5f}", f"{metrics_leph_core['sigma_mad']:.5f}"),
-        ('Core Outlier Rate (eta > 0.15)', f"{metrics_pont_core['outlier_015']:.2%}", f"{metrics_leph_core['outlier_015']:.2%}"),
+        ('--- Shear Window (0.4 <= z < 1.0) ---', f"N = {int(np.sum(shear_mask)):,}", f"N = {int(np.sum(shear_mask)):,}"),
+        ('Shear Window Bias (Median)', f"{metrics_pont_shear['bias']:+.5f}", f"{metrics_leph_shear['bias']:+.5f}"),
+        ('Shear Window Sigma_MAD', f"{metrics_pont_shear['sigma_mad']:.5f}", f"{metrics_leph_shear['sigma_mad']:.5f}"),
+        ('Shear Window Outlier (eta > 0.15)', f"{metrics_pont_shear['outlier_015']:.2%}", f"{metrics_leph_shear['outlier_015']:.2%}"),
+        ('Shear Window RMSE', f"{metrics_pont_shear['rmse']:.5f}", f"{metrics_leph_shear['rmse']:.5f}"),
     ]
     for label, val_p, val_l in metric_rows:
         print(f"{label:<30s} | {val_p:<25s} | {val_l:<30s}")
@@ -217,16 +230,24 @@ def main():
     summary_df.to_csv(res_dir / "pontifex_vs_lephare_metrics.csv", index=False)
 
     # Detailed Redshift Tomographic Bins Analysis
-    tomo_bins = [
-        ('Bin 1 (0.01 <= z < 0.40)', 0.01, 0.40),
-        ('Bin 2 (0.40 <= z < 0.80)', 0.40, 0.80),
-        ('Bin 3 (0.80 <= z < 1.20)', 0.80, 1.20),
-        ('Bin 4 (1.20 <= z < 1.60)', 1.20, 1.60),
-        ('Bin 5 (1.60 <= z <= 3.00)', 1.60, 3.00),
-    ]
+    if args.zmax <= 1.35:
+        tomo_bins = [
+            ('Bin 1 (0.00 <= z < 0.40)', 0.00, 0.40),
+            ('Bin 2 (0.40 <= z < 0.70)', 0.40, 0.70),
+            ('Bin 3 (0.70 <= z < 1.00)', 0.70, 1.00),
+            ('Bin 4 (1.00 <= z <= 1.30)', 1.00, 1.30),
+        ]
+    else:
+        tomo_bins = [
+            ('Bin 1 (0.01 <= z < 0.40)', 0.01, 0.40),
+            ('Bin 2 (0.40 <= z < 0.80)', 0.40, 0.80),
+            ('Bin 3 (0.80 <= z < 1.20)', 0.80, 1.20),
+            ('Bin 4 (1.20 <= z < 1.60)', 1.20, 1.60),
+            ('Bin 5 (1.60 <= z <= 3.00)', 1.60, 3.00),
+        ]
     tomo_results = []
     for name, z_min, z_max in tomo_bins:
-        bmask = (zs >= z_min) & (zs < z_max if z_max < 3.0 else zs <= z_max)
+        bmask = (zs >= z_min) & (zs < z_max if z_max < args.zmax else zs <= z_max)
         n_b = int(np.sum(bmask))
         mp = compute_metrics(zp_pont[bmask], zs[bmask])
         ml = compute_metrics(zp_leph[bmask], zs[bmask])
@@ -266,12 +287,15 @@ def main():
             })
 
     # Save complete JSON
+    # Save complete JSON
     full_json = {
+        'zmin': args.zmin,
+        'zmax': args.zmax,
         'total_matched_galaxies': N_matched,
         'overall_pontifex': metrics_pont_all,
         'overall_lephare': metrics_leph_all,
-        'core_pontifex_z_lt_1p2': metrics_pont_core,
-        'core_lephare_z_lt_1p2': metrics_leph_core,
+        'shear_pontifex_z_0p4_1p0': metrics_pont_shear,
+        'shear_lephare_z_0p4_1p0': metrics_leph_shear,
         'tomographic_bins': tomo_results,
         'magnitude_bins': mag_results,
     }
@@ -287,17 +311,17 @@ def main():
     dz_pont = (zp_pont - zs) / (1.0 + zs)
     dz_leph = (zp_leph - zs) / (1.0 + zs)
 
-    for idx, (ax, zp, dz, title, col, sigma_val, out_val, bias_val, n_bands) in enumerate([
+    for idx, (ax, zp, dz, title, col, sigma_val, out_val, bias_val, rmse_val, n_bands) in enumerate([
         (axes[0], zp_pont, dz_pont, "Pontifex v2.2.0 (AionPlus)", "Purples",
-         metrics_pont_all['sigma_mad'], metrics_pont_all['outlier_015'], metrics_pont_all['bias'], "6 Rubin LSST Bands"),
+         metrics_pont_all['sigma_mad'], metrics_pont_all['outlier_015'], metrics_pont_all['bias'], metrics_pont_all['rmse'], "6 Rubin LSST Bands"),
         (axes[1], zp_leph, dz_leph, "COSMOS2020 Classic LePHARE", "Blues",
-         metrics_leph_all['sigma_mad'], metrics_leph_all['outlier_015'], metrics_leph_all['bias'], "30+ UV-to-IRAC Bands"),
+         metrics_leph_all['sigma_mad'], metrics_leph_all['outlier_015'], metrics_leph_all['bias'], metrics_leph_all['rmse'], "30+ UV-to-IRAC Bands"),
     ]):
-        hb = ax.hexbin(zs, zp, gridsize=110, cmap=col, mincnt=1, bins='log', extent=[0.0, 3.0, 0.0, 3.0])
+        hb = ax.hexbin(zs, zp, gridsize=110, cmap=col, mincnt=1, bins='log', extent=[args.zmin, args.zmax, args.zmin, args.zmax])
         cb = fig.colorbar(hb, ax=ax, fraction=0.046, pad=0.04)
         cb.set_label(r'$\log_{10}(N_{\mathrm{gal}})$', fontsize=11)
 
-        z_line = np.linspace(0.0, 3.0, 200)
+        z_line = np.linspace(args.zmin, args.zmax, 200)
         ax.plot(z_line, z_line, 'r--', lw=1.8, label=r'Identity $z_{\mathrm{phot}} = z_{\mathrm{spec}}$')
         ax.plot(z_line, z_line + 0.15 * (1.0 + z_line), 'k:', lw=1.2, alpha=0.8, label=r'$\pm 0.15(1+z)$ Boundary')
         ax.plot(z_line, z_line - 0.15 * (1.0 + z_line), 'k:', lw=1.2, alpha=0.8)
@@ -308,20 +332,21 @@ def main():
             f"$N = {N_matched:,}$\n"
             f"Bias = {bias_val:+.4f}\n"
             f"$\\sigma_{{\\mathrm{{MAD}}}} = {sigma_val:.4f}$\n"
-            f"$\\eta_{{0.15}} =$ {out_val*100:.2f}%"
+            f"$\\eta_{{0.15}} =$ {out_val*100:.2f}%\n"
+            f"RMSE = {rmse_val:.4f}"
         )
         ax.text(0.05, 0.95, stats_box, transform=ax.transAxes, verticalalignment='top',
                 fontsize=11, bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.92, edgecolor='gray'))
 
-        ax.set_xlim(0.0, 3.0)
-        ax.set_ylim(0.0, 3.0)
+        ax.set_xlim(args.zmin, args.zmax)
+        ax.set_ylim(args.zmin, args.zmax)
         ax.set_xlabel(r'Spectroscopic Redshift $z_{\mathrm{spec}}$')
         if idx == 0:
             ax.set_ylabel(r'Photometric Redshift $z_{\mathrm{phot}}$')
         ax.set_title(f"{title}\n({n_bands})", pad=12, fontweight='bold')
         ax.legend(loc='lower right', framealpha=0.9, fontsize=9.5)
 
-    plt.suptitle(r"COSMOS Curated Sample Matched Benchmark ($N = 35{,}291$, $\mathrm{flag} \geq 3$)", fontsize=16, y=0.98)
+    plt.suptitle(f"COSMOS Curated Sample Matched Benchmark ($N = {N_matched:,}$, $z \\in [{args.zmin:.1f}, {args.zmax:.1f}]$, $\\mathrm{{flag}} \\geq 3$)", fontsize=16, y=0.98)
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     fig1_path = res_dir / "figure1_pontifex_vs_lephare_hexbin.png"
     fig.savefig(fig1_path, dpi=300, bbox_inches='tight')
@@ -358,7 +383,10 @@ def main():
     axes[0].set_ylabel(r'Core Scatter $\sigma_{\mathrm{MAD}}$')
     axes[0].set_title(r'(a) Redshift Dispersion $\sigma_{\mathrm{MAD}}(z)$')
     axes[0].legend(loc='upper left', framealpha=0.9, fontsize=10)
-    axes[0].set_ylim(0.005, 0.35)
+    if args.zmax <= 1.35:
+        axes[0].set_ylim(0.005, 0.035)
+    else:
+        axes[0].set_ylim(0.005, 0.35)
     axes[0].set_yscale('log')
     axes[0].yaxis.set_major_formatter(ticker.FormatStrFormatter('%.3f'))
 
@@ -372,7 +400,10 @@ def main():
     axes[1].set_ylabel(r'Outlier Fraction $\eta_{0.15}$ (%)')
     axes[1].set_title(r'(b) Outlier Fraction $\eta_{0.15}(z)$')
     axes[1].legend(loc='upper left', framealpha=0.9, fontsize=10)
-    axes[1].set_ylim(0.5, 70.0)
+    if args.zmax <= 1.35:
+        axes[1].set_ylim(0.5, 12.0)
+    else:
+        axes[1].set_ylim(0.5, 70.0)
     axes[1].set_yscale('log')
     axes[1].yaxis.set_major_formatter(ticker.FormatStrFormatter('%.1f'))
 
@@ -386,10 +417,13 @@ def main():
     axes[2].set_ylabel(r'Median Bias $\langle \Delta z / (1+z) \rangle$')
     axes[2].set_title(r'(c) Photometric Redshift Bias $(z)$')
     axes[2].legend(loc='lower left', framealpha=0.9, fontsize=10)
-    axes[2].set_ylim(-0.25, 0.05)
+    if args.zmax <= 1.35:
+        axes[2].set_ylim(-0.015, 0.010)
+    else:
+        axes[2].set_ylim(-0.25, 0.05)
 
     plt.tight_layout()
-    plt.suptitle(r"Tomographic Performance Profiles on Matched COSMOS Sample ($N = 35{,}291$)", fontsize=15, y=1.01)
+    plt.suptitle(f"Tomographic Performance Profiles on Matched COSMOS Sample ($N = {N_matched:,}$, $z \\in [{args.zmin:.1f}, {args.zmax:.1f}]$)", fontsize=15, y=1.01)
     fig2_path = res_dir / "figure2_pontifex_vs_lephare_redshift_bins.png"
     fig.savefig(fig2_path, dpi=300, bbox_inches='tight')
     plt.close(fig)
@@ -428,10 +462,10 @@ def main():
     axes[1].set_ylabel(r'Outlier Fraction $\eta_{0.15}$ (%)')
     axes[1].set_title(r'(b) Outlier Fraction vs. Apparent Magnitude $\eta_{0.15}(i)$')
     axes[1].legend(loc='upper left', framealpha=0.9)
-    axes[1].set_ylim(0.0, 20.0)
+    axes[1].set_ylim(0.0, 25.0)
 
     plt.tight_layout()
-    plt.suptitle(r"Performance vs. Apparent Brightness ($N = 35{,}291$)", fontsize=15, y=1.01)
+    plt.suptitle(f"Performance vs. Apparent Brightness ($N = {N_matched:,}$, $z \\in [{args.zmin:.1f}, {args.zmax:.1f}]$)", fontsize=15, y=1.01)
     fig3_path = res_dir / "figure3_pontifex_vs_lephare_mag_bins.png"
     fig.savefig(fig3_path, dpi=300, bbox_inches='tight')
     plt.close(fig)
@@ -462,10 +496,10 @@ def main():
 
     # Right: Direct comparison z_phot(Pontifex) vs z_phot(LePHARE)
     ax_scatter = fig.add_subplot(gs[1])
-    hb_direct = ax_scatter.hexbin(zp_leph, zp_pont, gridsize=100, cmap='viridis', mincnt=1, bins='log', extent=[0, 3, 0, 3])
+    hb_direct = ax_scatter.hexbin(zp_leph, zp_pont, gridsize=100, cmap='viridis', mincnt=1, bins='log', extent=[args.zmin, args.zmax, args.zmin, args.zmax])
     cb_dir = fig.colorbar(hb_direct, ax=ax_scatter, fraction=0.046, pad=0.04)
     cb_dir.set_label(r'$\log_{10}(N_{\mathrm{gal}})$', fontsize=11)
-    ax_scatter.plot([0, 3], [0, 3], 'r--', lw=1.8, label=r'Concordance $z_{\mathrm{Pont}} = z_{\mathrm{LePHARE}}$')
+    ax_scatter.plot([args.zmin, args.zmax], [args.zmin, args.zmax], 'r--', lw=1.8, label=r'Concordance $z_{\mathrm{Pont}} = z_{\mathrm{LePHARE}}$')
 
     pearson_r = np.corrcoef(zp_pont, zp_leph)[0, 1]
     diff_zp = np.abs(zp_pont - zp_leph)
@@ -478,15 +512,15 @@ def main():
     ax_scatter.text(0.05, 0.95, agreement_box, transform=ax_scatter.transAxes, verticalalignment='top',
                     fontsize=11, bbox=dict(boxstyle='round,pad=0.5', facecolor='white', alpha=0.92, edgecolor='gray'))
 
-    ax_scatter.set_xlim(0.0, 3.0)
-    ax_scatter.set_ylim(0.0, 3.0)
+    ax_scatter.set_xlim(args.zmin, args.zmax)
+    ax_scatter.set_ylim(args.zmin, args.zmax)
     ax_scatter.set_xlabel(r'COSMOS2020 Classic LePHARE $z_{\mathrm{phot}}$ (30+ bands)')
     ax_scatter.set_ylabel(r'Pontifex v2.2.0 $z_{\mathrm{phot}}$ (6 bands)')
-    ax_scatter.set_title(r'(b) Estimator Concordance ($N = 35{,}291$)')
+    ax_scatter.set_title(f"(b) Estimator Concordance ($N = {N_matched:,}$)")
     ax_scatter.legend(loc='lower right', framealpha=0.9, fontsize=10)
 
     plt.tight_layout()
-    plt.suptitle(r"Comparative Residual & Concordance Diagnostics", fontsize=15, y=1.01)
+    plt.suptitle(f"Comparative Residual & Concordance Diagnostics ($z \\in [{args.zmin:.1f}, {args.zmax:.1f}]$)", fontsize=15, y=1.01)
     fig4_path = res_dir / "figure4_pontifex_vs_lephare_residuals.png"
     fig.savefig(fig4_path, dpi=300, bbox_inches='tight')
     plt.close(fig)
